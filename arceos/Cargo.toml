@@ -55,7 +55,7 @@ members = [
     "exercises/sys_map",
     "exercises/simple_hv",
 
-    "examples/shell",
+    "examples/shell", "examples/prim",
 ]
 
 [workspace.package]

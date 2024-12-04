@@ -1,13 +1,16 @@
 #![allow(dead_code)]
 
 use core::ffi::{c_void, c_char, c_int};
+use alloc::task;
 use axhal::arch::TrapFrame;
 use axhal::trap::{register_trap_handler, SYSCALL};
 use axerrno::LinuxError;
 use axtask::current;
 use axtask::TaskExtRef;
 use axhal::paging::MappingFlags;
-use arceos_posix_api as api;
+use arceos_posix_api::{self as api, get_file_like};
+use axhal::mem::virt_to_phys;
+use memory_addr::{MemoryAddr, VirtAddr, PAGE_SIZE_4K};
 
 const SYS_IOCTL: usize = 29;
 const SYS_OPENAT: usize = 56;
@@ -140,7 +143,30 @@ fn sys_mmap(
     fd: i32,
     _offset: isize,
 ) -> isize {
-    unimplemented!("no sys_mmap!");
+    if length == 0{
+        return -1;
+    }
+    if prot & !0x7 != 0 || prot & 0x7 == 0{
+        return -1;
+    }
+
+    let task = axtask::current();
+    let mut uspace = task.task_ext().aspace.lock();
+
+    let size = memory_addr::align_up(length, PAGE_SIZE_4K);
+    let addr_src =  uspace.find_free_area(uspace.base(), size , 
+    memory_addr::AddrRange::new(uspace.base(),uspace.end())).unwrap();
+    let addr_at = addr_src.align_up_4k() + 0x19000 + 0x19000;
+    if uspace.map_alloc(addr_at, size, MappingFlags::from(MmapProt::from_bits_truncate(prot)), true).is_err() {
+        warn!("map_alloc error !!!! when sys_mmap!!! ");
+        return 0;
+    }
+    let mut buf= alloc::vec![0; length];
+    get_file_like(fd).and_then(|f|f.read(&mut buf));
+
+    uspace.write(addr_at, &buf);
+
+    addr_at.as_usize() as isize
 }
 
 fn sys_openat(dfd: c_int, fname: *const c_char, flags: c_int, mode: api::ctypes::mode_t) -> isize {

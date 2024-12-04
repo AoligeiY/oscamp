@@ -21,3 +21,34 @@ macro_rules! println {
         $crate::io::__print_impl(format_args!("{}\n", format_args!($($arg)*)));
     }
 }
+
+#[macro_export]
+macro_rules! print_color {
+    ($($arg:tt)*) => {{
+        const BLUE: &str = "\x1b[34m"; // 蓝色 ANSI 转义码
+        const RESET: &str = "\x1b[0m"; // 重置颜色
+        $crate::io::__print_impl(format_args!(
+            "{}{}{}",
+            BLUE,
+            format_args!($($arg)*),
+            RESET
+        ));
+    }};
+}
+
+#[macro_export]
+macro_rules! println_color {
+    () => {
+        $crate::print_blue!("\n");
+    };
+    ($($arg:tt)*) => {{
+        const RED: &str = "\x1b[31m"; // 蓝色 ANSI 转义码
+        const RESET: &str = "\x1b[0m"; // 重置颜色
+        $crate::io::__print_impl(format_args!(
+            "{}{}{}\n",
+            RED,
+            format_args!($($arg)*),
+            RESET
+        ));
+    }};
+}
